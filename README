@@ -1,0 +1,3 @@
+This repository features data mining experiments (with descriptions on http://webmining.olariu.org)
+
+The experiments use a pipeline workflow and are designed to run in ipython (exploratory coding).

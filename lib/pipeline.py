@@ -23,15 +23,15 @@ class Pipeline:
     def get_interval(self, l):
         if self.per_interval == 0:
             return self.interval
-        if l < 0.4 * self.per_interval:
-            self.interval += 2
-        elif l < 0.6 * self.per_interval:
-            self.interval += 1
-        elif l == self.per_interval:
-            self.interval -= 2
-        elif l > 0.8 * self.per_interval:
-            self.interval -= 1
-        self.interval = max(self.interval, 1)
+        if l < 0.3 * self.per_interval:
+            self.interval *= 1.5
+        elif l < 0.5 * self.per_interval:
+            self.interval *= 1.3
+        elif l > 0.85 * self.per_interval:
+            self.interval *= 0.5
+        elif l > 0.7 * self.per_interval:
+            self.interval *= 0.8
+        self.interval = int(max(self.interval, 1))
         return self.interval
     
     def keep_monitoring(self):

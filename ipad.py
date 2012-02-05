@@ -9,7 +9,8 @@ logging.basicConfig(
 logger = logging.getLogger('ipad.py')
 logger.debug('Starting the monitor')
 
-p = Pipeline(['ipad3', '"ipad 3"', '"new ipad"', 'ipad2s', '"ipad 2s"', 'ipad2', '"ipad 2"', 'ipadmini', '"ipad mini"'], savefile='ipaddata', savedelta=3600)
+p = Pipeline(['ipad3', '"ipad 3"', '"new ipad"', 'ipad2s', '"ipad 2s"', 'ipad2', 
+    '"ipad 2"', 'ipadmini', '"ipad mini"'], savefile='ipaddata', savedelta=3600)
 
 def strip_useless_info(input_queue=None, output_queue=None, keep_monitoring=None):
     #... because less is more

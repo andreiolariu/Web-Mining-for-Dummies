@@ -1,4 +1,4 @@
-import threading, Queue, time, logging
+import threading, Queue, time, logging, socket
 
 import simplejson as json
 
@@ -21,6 +21,9 @@ class Pipeline:
         self.functions.append((self.monitor_twitter, {'keywords': keywords}))
         self.savefile = savefile
         self.savedelta = savedelta
+
+	# Change timeout
+	socket.setdefaulttimeout(10)
         
     def add_function(self, function, params):
         # Add a 'processing' function to the pipeline
@@ -34,14 +37,15 @@ class Pipeline:
         if self.per_interval == 0:
             return self.interval
         if l < 0.3 * self.per_interval:
-            self.interval *= 1.5
+            self.interval *= 1.4
         elif l < 0.5 * self.per_interval:
-            self.interval *= 1.3
-        elif l > 0.85 * self.per_interval:
+            self.interval *= 1.2
+        elif l > 0.8 * self.per_interval:
             self.interval *= 0.5
-        elif l > 0.7 * self.per_interval:
+        elif l > 0.65 * self.per_interval:
             self.interval *= 0.8
-        self.interval = int(max(self.interval, 1))
+        self.interval = int(max(self.interval, 25))
+        self.interval = min(self.interval, 300)
         return self.interval
     
     def keep_monitoring(self):
@@ -89,18 +93,22 @@ class Pipeline:
         
     def monitor_twitter(self, queue=None, keywords=None):
         # Fetcher function, for monitoring twitter
-        next_run = time.time()
-        id_cache = set([])
-        while self.keep_monitoring():
-            if next_run <= time.time():
-                batch = fetch_tweets(keywords)
-                batch = [t for t in batch if t['id'] not in id_cache]
-                logger.debug('Fetched %s tweets' % len(batch))
-                id_cache.update([t['id'] for t in batch])
-                for t in batch:
-                    queue.put(t)
-                next_run += self.get_interval(len(batch)) 
-            time.sleep(1)
+        try:
+          next_run = time.time()
+          id_cache = set([])
+          while self.keep_monitoring():
+              if next_run <= time.time():
+                  batch = fetch_tweets(keywords)
+                  batch = [t for t in batch if t['id'] not in id_cache]
+                  logger.debug('Fetched %s tweets' % len(batch))
+                  id_cache.update([t['id'] for t in batch])
+                  for t in batch:
+                      queue.put(t)
+                  next_run += self.get_interval(len(batch)) 
+              time.sleep(1)
+        except Exception, e:
+          logger.debug('Error in monitor: %s' % e)
+          raise e 
             
     def writer(self, queue=None):
         # Write processed data to file

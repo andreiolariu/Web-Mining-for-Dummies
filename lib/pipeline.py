@@ -1,9 +1,10 @@
 import threading, Queue, time, logging, socket
 
 import simplejson as json
+from twython import TwythonStreamer
 
-from lib.api.twitter import fetch_tweets
-        
+from settings import *
+
 logger = logging.getLogger('pipeline')
 
 class Pipeline:
@@ -13,12 +14,13 @@ class Pipeline:
         At this time it only works on twitter. Will expand (perhaps) in time
     '''
     
-    def __init__(self, keywords, interval=10, per_interval=100, \
-            savefile=None, savedelta=3600):
+    def __init__(self, keywords=[], locations=None, interval=10, 
+    		per_interval=100, savefile=None, savedelta=3600):
         self.functions = []
         self.interval = interval
         self.per_interval = per_interval
-        self.functions.append((self.monitor_twitter, {'keywords': keywords}))
+        self.functions.append((self.monitor_twitter_stream, 
+        		{'keywords': keywords, 'locations': locations}))
         self.savefile = savefile
         self.savedelta = savedelta
 
@@ -46,7 +48,7 @@ class Pipeline:
             self.interval *= 0.8
         self.interval = int(max(self.interval, 25))
         self.interval = min(self.interval, 300)
-        return self.interval
+        return 10 # :) self.interval
     
     def keep_monitoring(self):
         # See stop() for info
@@ -56,6 +58,7 @@ class Pipeline:
         # Stops the pipeline
         # For use when in ipython
         self.running = False
+        self.stream.disconnect()
     
     def run(self):
         # Start the pipeline threads
@@ -91,24 +94,38 @@ class Pipeline:
         else:
             self.output = old_queue
         
-    def monitor_twitter(self, queue=None, keywords=None):
+    def monitor_twitter_stream(self, queue=None, keywords=None, locations=None):
         # Fetcher function, for monitoring twitter
-        try:
-          next_run = time.time()
+
+        class MyStreamer(TwythonStreamer):
+          count = 0
+          log_time = time.time()
           id_cache = set([])
-          while self.keep_monitoring():
-              if next_run <= time.time():
-                  batch = fetch_tweets(keywords)
-                  batch = [t for t in batch if t['id'] not in id_cache]
-                  logger.debug('Fetched %s tweets' % len(batch))
-                  id_cache.update([t['id'] for t in batch])
-                  for t in batch:
-                      queue.put(t)
-                  next_run += self.get_interval(len(batch)) 
-              time.sleep(1)
-        except Exception, e:
-          logger.debug('Error in monitor: %s' % e)
-          raise e 
+
+          def on_success(self, tweet):
+            if 'text' in tweet and 'id' in tweet:
+              if tweet['id'] not in self.id_cache:
+                self.id_cache.add(tweet['id'])
+                queue.put(tweet)
+                self.count += 1
+
+            if self.log_time + 60 < time.time():
+              self.log_time = time.time()
+              logger.debug('Fetched %s tweets' % self.count)
+              self.count = 0
+
+          def on_error(self, status_code, data):
+            logger.debug('Error in Streamer: %s' % status_code)
+
+        self.stream = MyStreamer(
+            CONSUMER_KEY, CONSUMER_SECRET,
+            ACCESS_TOKEN, ACCESS_TOKEN_SECRET
+        )
+
+        if keywords:
+          self.stream.statuses.filter(keywords=keywords)
+        else:
+          self.stream.statuses.filter(locations=locations)
             
     def writer(self, queue=None):
         # Write processed data to file

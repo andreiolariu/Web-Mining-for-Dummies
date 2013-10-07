@@ -9,8 +9,12 @@ logging.basicConfig(
 logger = logging.getLogger('ipad.py')
 logger.debug('Starting the monitor')
 
-p = Pipeline(['ipad3', '"ipad 3"', '"new ipad"', 'ipad2s', '"ipad 2s"', 'ipad2', 
-    '"ipad 2"', 'ipadmini', '"ipad mini"', '"ipad hd"'], savefile='ipaddata', savedelta=3600)
+keywords = ['ipad3', '"ipad 3"', '"new ipad"', 'ipad2s', '"ipad 2s"', 'ipad2', 
+    '"ipad 2"', 'ipadmini', '"ipad mini"', '"ipad hd"']
+locations = "-78,36,-70,43"
+
+p = Pipeline(keywords=None, locations=locations, \
+		savefile='nycdata2014', savedelta=30)
 
 def strip_useless_info(input_queue=None, output_queue=None, keep_monitoring=None):
     #... because less is more
